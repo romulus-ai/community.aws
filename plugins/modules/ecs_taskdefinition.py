@@ -629,6 +629,21 @@ options:
             expression:
                 description: A cluster query language expression to apply to the constraint.
                 type: str
+    runtime_platform:
+        description:
+            - runtime platform configuration for the task
+        required: false
+        type: list
+        elements: dict
+        suboptions:
+          cpuArchitecture:
+            description: The CPU Architecture type to be used by the task
+            type: str
+            choices: ['X86_64', 'ARM64']
+          operatingSystemFamily
+            description: OS type to be used by the task
+            type: str
+            choices: ['LINUX', 'WINDOWS_SERVER_2019_FULL', 'WINDOWS_SERVER_2019_CORE', 'WINDOWS_SERVER_2022_FULL', 'and WINDOWS_SERVER_2022_CORE']
 extends_documentation_fragment:
 - amazon.aws.aws
 - amazon.aws.ec2
@@ -803,7 +818,7 @@ class EcsTaskManager:
             return None
 
     def register_task(self, family, task_role_arn, execution_role_arn, network_mode, container_definitions,
-                      volumes, launch_type, cpu, memory, placement_constraints):
+                      volumes, launch_type, cpu, memory, placement_constraints, runtime_platform):
         validated_containers = []
 
         # Ensures the number parameters are int as required by the AWS SDK
@@ -859,6 +874,8 @@ class EcsTaskManager:
             params['executionRoleArn'] = execution_role_arn
         if placement_constraints:
             params['placementConstraints'] = placement_constraints
+        if runtime_platform:
+            params['runtimePlatform'] = runtime_platform
 
         try:
             response = self.ecs.register_task_definition(aws_retry=True, **params)
@@ -921,6 +938,7 @@ def main():
         memory=dict(required=False, type='str'),
         placement_constraints=dict(required=False, type='list', elements='dict',
                                    options=dict(type=dict(type='str'), expression=dict(type='str'))),
+        runtime_platform=dict(required=False, default={}, type='dict'),
     )
 
     module = AnsibleAWSModule(argument_spec=argument_spec,
@@ -1118,7 +1136,8 @@ def main():
                                                                    module.params['launch_type'],
                                                                    module.params['cpu'],
                                                                    module.params['memory'],
-                                                                   module.params['placement_constraints'],)
+                                                                   module.params['placement_constraints'],
+                                                                   module.params['runtime_platform'],)
             results['changed'] = True
 
     elif module.params['state'] == 'absent':
